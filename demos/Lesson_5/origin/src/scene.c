@@ -5,6 +5,7 @@
 
 void init_scene(Scene* scene)
 {
+    scene->sphere_rotation = 0.0;
 }
 
 void update_scene(Scene* scene)
@@ -62,7 +63,10 @@ void draw_origin()
 }
 
 void draw_colorful_triangle()
-{
+{   
+    glPushMatrix();
+    glTranslatef(-0.1f, 0.0f, -0.3f);
+
     glBegin(GL_TRIANGLES);
     glColor3f(1.0f, 1.0f, 0.0f);
     glVertex3f(0.2f, 0.2f, 0.5f);
@@ -73,6 +77,8 @@ void draw_colorful_triangle()
     glColor3f(1.0f, 0.0f, 1.0f);
     glVertex3f(0.5f, 0.8f, 0.5f);
     glEnd();
+
+    glPopMatrix();
 }
 
 void draw_chessboard()
@@ -104,10 +110,9 @@ void draw_tessellated_sphere(double rotation)
     glPushMatrix();
     glTranslatef(0.5f, 0.5f, 0.5f);
     glRotatef(rotation, 0.0f, 0.0f, 1.0f);
-    glColor3f(0.6f, 0.6f, 0.6f);
     
-    int stacks = 8;
-    int slices = 8;
+    int stacks = 24;
+    int slices = 24;
     double radius = 0.2;
     
     for (int i = 0; i < stacks; ++i) {
@@ -125,6 +130,9 @@ void draw_tessellated_sphere(double rotation)
             double x = cos(lng);
             double y = sin(lng);
 
+            float c = (float)j / slices;
+
+            glColor3f(c, 0.0f, 1.0f - c);
             glVertex3f(x * zr0, y * zr0, z0);
             glVertex3f(x * zr1, y * zr1, z1);
         }

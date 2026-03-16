@@ -98,7 +98,8 @@ void reshape(GLsizei width, GLsizei height)
 void handle_app_events(App* app)
 {
     SDL_Event event;
-    static bool is_mouse_down = false;
+    static bool is_left_mouse_down = false;
+    static bool is_right_mouse_down = false;
     static int mouse_x = 0;
     static int mouse_y = 0;
     int x;
@@ -158,26 +159,42 @@ void handle_app_events(App* app)
             }
             break;
         case SDL_MOUSEBUTTONDOWN:
-            is_mouse_down = true;
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                is_left_mouse_down = true;
+            } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                is_right_mouse_down = true;
+            }
             SDL_GetMouseState(&mouse_x, &mouse_y);
             break;
         case SDL_MOUSEMOTION:
             SDL_GetMouseState(&x, &y);
-            if (is_mouse_down) {
-                double dx = (mouse_x - x) * 0.01;
-                double dy = (y - mouse_y) * 0.01;
+            
+            if (is_left_mouse_down) {
+                double dx_screen = (double)(x - mouse_x);
+                double dy_screen = (double)(y - mouse_y);
                 
                 double angle = degree_to_radian(app->camera.rotation.z);
                 double side_angle = degree_to_radian(app->camera.rotation.z + 90.0);
                 
-                app->camera.position.x += cos(side_angle) * dx + cos(angle) * dy;
-                app->camera.position.y += sin(side_angle) * dx + sin(angle) * dy;
+                app->camera.position.x += (cos(side_angle) * dx_screen + cos(angle) * dy_screen) * 0.01;
+                app->camera.position.y += (sin(side_angle) * dx_screen + sin(angle) * dy_screen) * 0.01;
+            } 
+            else if (is_right_mouse_down) {
+                double dx = (double)(x - mouse_x);
+                double dy = (double)(y - mouse_y);
+                
+                rotate_camera(&(app->camera), dx * 0.2, dy * 0.2);
             }
+            
             mouse_x = x;
             mouse_y = y;
             break;
         case SDL_MOUSEBUTTONUP:
-            is_mouse_down = false;
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                is_left_mouse_down = false;
+            } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                is_right_mouse_down = false;
+            }
             break;
         case SDL_QUIT:
             app->is_running = false;
@@ -200,7 +217,7 @@ void update_app(App* app)
     update_camera(&(app->camera), elapsed_time);
     update_scene(&(app->scene));
 
-    app->scene.sphere_rotation += 45.0 * elapsed_time;
+    app->scene.sphere_rotation += 180.0 * elapsed_time;
     if (app->scene.sphere_rotation > 360.0) {
         app->scene.sphere_rotation -= 360.0;
     }
