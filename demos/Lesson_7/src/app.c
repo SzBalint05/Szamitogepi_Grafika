@@ -125,14 +125,6 @@ void handle_app_events(App* app)
             case SDL_SCANCODE_D:
                 set_camera_side_speed(&(app->camera), -1);
                 break;
-            case SDL_SCANCODE_E:
-                app->scene.light_intensity += 0.1f;
-                if (app->scene.light_intensity > 3.0f) app->scene.light_intensity = 3.0f;
-                break;
-            case SDL_SCANCODE_Q:
-                app->scene.light_intensity -= 0.1f;
-                if (app->scene.light_intensity < 0.0f) app->scene.light_intensity = 0.0f;
-                break;
             default:
                 break;
             }
@@ -196,10 +188,6 @@ void render_app(App* app)
     set_view(&(app->camera));
     render_scene(&(app->scene));
     glPopMatrix();
-
-    if (app->camera.is_preview_visible) {
-        show_texture_preview();
-    }
 
     SDL_GL_SwapWindow(app->window);
 }

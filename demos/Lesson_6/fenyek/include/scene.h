@@ -9,8 +9,13 @@
 typedef struct Scene
 {
     Model cube;
+    Model extra_model;
     Material material;
     GLuint texture_id;
+    GLuint extra_texture_id;
+    float rotation_angle;
+    float light_intensity;
+    float light_time;
 } Scene;
 
 /**
@@ -31,7 +36,7 @@ void set_material(const Material* material);
 /**
  * Update the scene.
  */
-void update_scene(Scene* scene);
+void update_scene(Scene* scene, double time);
 
 /**
  * Render the scene objects.
