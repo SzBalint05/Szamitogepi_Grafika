@@ -17,4 +17,4 @@ void rotate_camera(Camera* camera, double horizontal, double vertical);
 void set_camera_speed(Camera* camera, double speed);
 void set_camera_side_speed(Camera* camera, double speed);
 
-#endif
+#endif // CAMERA_H

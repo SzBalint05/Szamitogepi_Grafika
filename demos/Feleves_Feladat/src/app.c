@@ -7,7 +7,7 @@
 void init_app(App* app){
     app->is_running = false;
 
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0){
+    if(SDL_Init(SDL_INIT_EVERYTHING) != 0){
         printf("SDL initialization error: %s\n", SDL_GetError());
         return;
     }
@@ -21,14 +21,14 @@ void init_app(App* app){
         dm.w, dm.h,
         SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
 
-    if (app->window == NULL){
-        printf("Unable to create the application window!\n");
+    if(app->window == NULL){
+        printf("Unable to create the application window\n");
         return;
     }
 
     app->gl_context = SDL_GL_CreateContext(app->window);
-    if (app->gl_context == NULL){
-        printf("Unable to create the OpenGL context!\n");
+    if(app->gl_context == NULL){
+        printf("Unable to create the OpenGL context\n");
         return;
     }
 
@@ -49,7 +49,19 @@ void init_opengl(){
     glEnable(GL_NORMALIZE);
     glEnable(GL_DEPTH_TEST);
     glClearDepth(1.0);
-    glClearColor(0.05f, 0.05f, 0.08f, 1.0f);
+    
+    GLfloat bg_color[] = {0.05f, 0.05f, 0.08f, 1.0f};
+    glClearColor(bg_color[0], bg_color[1], bg_color[2], bg_color[3]);
+
+    glEnable(GL_FOG);
+    glFogfv(GL_FOG_COLOR, bg_color);
+    glFogi(GL_FOG_MODE, GL_LINEAR);
+    glFogf(GL_FOG_START, -3.0f);
+    glFogf(GL_FOG_END, 15.0f);
+    glHint(GL_FOG_HINT, GL_NICEST);
+
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
 }
 
 void reshape(int width, int height){
@@ -127,6 +139,9 @@ void update_app(App* app){
 
     update_camera(&(app->camera), elapsed_time);
     update_scene(&(app->scene), elapsed_time);
+
+    float terrain_z = get_terrain_height(&(app->scene), app->camera.position.x, app->camera.position.y);
+    app->camera.position.z = terrain_z + 1.5;
 }
 
 void render_app(App* app){
@@ -141,11 +156,11 @@ void render_app(App* app){
 }
 
 void destroy_app(App* app){
-    if (app->gl_context != NULL){
+    if(app->gl_context != NULL){
         SDL_GL_DeleteContext(app->gl_context);
     }
 
-    if (app->window != NULL){
+    if(app->window != NULL){
         SDL_DestroyWindow(app->window);
     }
     SDL_Quit();
