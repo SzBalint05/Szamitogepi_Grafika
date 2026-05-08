@@ -9,17 +9,17 @@
 
 #define MAP_SIZE 128
 #define TILE_SIZE 2.0f
-#define NUM_TREES 90
-#define NUM_ROCKS 60
+#define NUM_TREES 100
+#define NUM_ROCKS 70
 #define SPAWN_RADIUS 5.0f
 #define PLAYER_RADIUS 1.0f
 
-typedef struct Prop {
+typedef struct Prop{
     float x;
     float y;
     float z;
     float rotation;
-} Prop;
+}Prop;
 
 typedef struct{
     Material material;
@@ -37,6 +37,13 @@ typedef struct{
     int flashlight_level;
     float battery;
     GLuint hud_flashlight_texture;
+
+    int hp;
+    int kills;
+
+    GLuint gun_texture;
+    bool is_shooting;
+    float shot_timer;
 }Scene;
 
 void init_scene(Scene* scene);
@@ -45,6 +52,7 @@ void set_material(const Material* material);
 void update_scene(Scene* scene, double time);
 void render_scene(const Scene* scene);
 float get_terrain_height(const Scene* scene, float x, float y);
-bool is_colliding(const Scene* scene, float x, float y, float check_radius);
+float get_surface_height(const Scene* scene, float x, float y);
+bool is_colliding(const Scene* scene, float x, float y, float z, float check_radius);
 
 #endif // SCENE_H

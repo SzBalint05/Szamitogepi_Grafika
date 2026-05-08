@@ -12,6 +12,8 @@ void init_camera(Camera* camera){
     camera->speed.x = 0.0;
     camera->speed.y = 0.0;
     camera->speed.z = 0.0;
+    camera->is_jumping = false;
+    camera->vertical_speed = 0.0f;
 }
 
 void update_camera(Camera* camera, double time){
@@ -40,11 +42,11 @@ void rotate_camera(Camera* camera, double horizontal, double vertical){
     camera->rotation.z += horizontal;
     camera->rotation.x += vertical;
 
-    if (camera->rotation.z < 0) camera->rotation.z += 360.0;
-    if (camera->rotation.z > 360.0) camera->rotation.z -= 360.0;
+    if(camera->rotation.z < 0) camera->rotation.z += 360.0;
+    if(camera->rotation.z > 360.0) camera->rotation.z -= 360.0;
     
-    if (camera->rotation.x < -89.0) camera->rotation.x = -89.0;
-    if (camera->rotation.x > 89.0) camera->rotation.x = 89.0;
+    if(camera->rotation.x < -89.0) camera->rotation.x = -89.0;
+    if(camera->rotation.x > 89.0) camera->rotation.x = 89.0;
 }
 
 void set_camera_speed(Camera* camera, double speed){

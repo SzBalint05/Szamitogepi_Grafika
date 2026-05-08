@@ -8,6 +8,8 @@ typedef struct{
     vec3 position;
     vec3 rotation;
     vec3 speed;
+    bool is_jumping;
+    float vertical_speed;
 }Camera;
 
 void init_camera(Camera* camera);

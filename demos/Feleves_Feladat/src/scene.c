@@ -9,9 +9,9 @@
 #include <math.h>
 
 void set_lighting(){
-    float ambient_light[] = {0.6f, 0.6f, 0.6f, 1.0f};
+    float ambient_light[] = {0.3f, 0.3f, 0.3f, 1.0f};
     float diffuse_light[] = {0.4f, 0.4f, 0.4f, 1.0f};
-    float specular_light[] = {0.3f, 0.3f, 0.3f, 1.0f};
+    float specular_light[] = {0.0f, 0.0f, 0.0f, 1.0f};
     float position[] = {0.0f, 0.0f, 1.0f, 0.0f};
 
     glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light);
@@ -35,8 +35,7 @@ void init_scene(Scene* scene){
     scene->ground_texture = load_texture("assets/textures/grass.png");
     SDL_Surface* raw_hm = IMG_Load("assets/textures/heightmap.png");
     SDL_Surface* hm = NULL;
-    scene->hud_flashlight_texture = load_texture("assets/textures/flashlight.png");
-    
+
     if(raw_hm != NULL){
         hm = SDL_ConvertSurfaceFormat(raw_hm, SDL_PIXELFORMAT_RGBA32, 0);
         SDL_FreeSurface(raw_hm);
@@ -71,16 +70,17 @@ void init_scene(Scene* scene){
 
     for(int i = 0; i < NUM_TREES; i++){
         bool ok = false;
+
         while(!ok){
             float test_x = 1.0f + ((float)rand() / RAND_MAX) * (MAP_SIZE - 3.0f);
             float test_y = 1.0f + ((float)rand() / RAND_MAX) * (MAP_SIZE - 3.0f);
-            
-            ok = true; 
+            ok = true;
+
             for(int j = 0; j < i; j++){
                 float dx = test_x - scene->trees[j].x;
                 float dy = test_y - scene->trees[j].y;
                 if(dx*dx + dy*dy < (SPAWN_RADIUS * SPAWN_RADIUS)){
-                    ok = false; 
+                    ok = false;
                     break;
                 }
             }
@@ -100,7 +100,7 @@ void init_scene(Scene* scene){
             float test_x = 1.0f + ((float)rand() / RAND_MAX) * (MAP_SIZE - 3.0f);
             float test_y = 1.0f + ((float)rand() / RAND_MAX) * (MAP_SIZE - 3.0f);
             
-            if(!is_colliding(scene, test_x, test_y, SPAWN_RADIUS)){
+            if(!is_colliding(scene, test_x, test_y, 0.0f, SPAWN_RADIUS)){
                 ok = true;
                 scene->rocks[i].x = test_x;
                 scene->rocks[i].y = test_y;
@@ -112,22 +112,44 @@ void init_scene(Scene* scene){
 
     scene->material.ambient.red = 0.3f; scene->material.ambient.green = 0.3f; scene->material.ambient.blue = 0.3f;
     scene->material.diffuse.red = 0.3f; scene->material.diffuse.green = 0.3f; scene->material.diffuse.blue = 0.3f;
-    scene->material.specular.red = 0.4f; scene->material.specular.green = 0.4f; scene->material.specular.blue = 0.4f;
+    scene->material.specular.red = 0.5f; scene->material.specular.green = 0.5f; scene->material.specular.blue = 0.5f;
     scene->material.shininess = 0.0f;
 
+    // Kezdeti értékek
     scene->flashlight_level = 0;
     scene->battery = 100.0f;
+    scene->hp = 100;
+    scene->kills = 7;
+    scene->is_shooting = false;
+    scene->shot_timer = 0.0f;
+
+    // HUD textúrák
+    scene->hud_flashlight_texture = load_texture("assets/textures/flashlight.png");
+    glBindTexture(GL_TEXTURE_2D, scene->hud_flashlight_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    scene->gun_texture = load_texture("assets/textures/gun.png");
+    glBindTexture(GL_TEXTURE_2D, scene->gun_texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 }
 
 void update_scene(Scene* scene, double time){
-    if (scene->flashlight_level > 0) {
-        float drain_rates[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+    if (scene->flashlight_level > 0){
+        float drain_rates[] = {0.0f, 1.0f, 2.0f, 3.0f};
         scene->battery -= drain_rates[scene->flashlight_level] * time;
 
-
-        if (scene->battery <= 0.0f) {
+        if(scene->battery <= 0.0f){
             scene->battery = 0.0f;
             scene->flashlight_level = 0;
+        }
+    }
+
+    if(scene->is_shooting){
+        scene->shot_timer -= time;
+        if(scene->shot_timer <= 0.0f){
+            scene->is_shooting = false;
         }
     }
 }
@@ -195,7 +217,7 @@ void render_scene(const Scene* scene){
 
 float get_terrain_height(const Scene* scene, float x, float y){
     if(x < 0.0f || x >= MAP_SIZE - 1 || y < 0.0f || y >= MAP_SIZE - 1){
-        return 0.0f; 
+        return 0.0f;
     }
 
     int ix = (int)x;
@@ -216,18 +238,34 @@ float get_terrain_height(const Scene* scene, float x, float y){
     return final_height;
 }
 
-bool is_colliding(const Scene* scene, float x, float y, float half_size){
+bool is_colliding(const Scene* scene, float x, float y, float z, float half_size){
     for(int i = 0; i < NUM_TREES; i++){
         float dx = fabs(scene->trees[i].x - x);
         float dy = fabs(scene->trees[i].y - y);
-        if(dx < half_size && dy < half_size) return true;
+
+        if(dx < half_size && dy < half_size && z < scene->trees[i].z + 9.9f) return true;
     }
 
     for(int i = 0; i < NUM_ROCKS; i++){
         float dx = fabs(scene->rocks[i].x - x);
         float dy = fabs(scene->rocks[i].y - y);
-        if(dx < half_size && dy < half_size) return true;
+        
+        if(dx < half_size && dy < half_size && z < scene->rocks[i].z + 0.9f) return true;
     }
+    return false;
+}
 
-    return false; 
+float get_surface_height(const Scene* scene, float x, float y){
+    float max_z = get_terrain_height(scene, x, y);
+
+    for(int i = 0; i < NUM_ROCKS; i++){
+        float dx = fabs(scene->rocks[i].x - x);
+        float dy = fabs(scene->rocks[i].y - y);
+
+        if(dx < PLAYER_RADIUS && dy < PLAYER_RADIUS){
+            float rock_top = scene->rocks[i].z + 1.0f;
+            if(rock_top > max_z) max_z = rock_top;
+        }
+    }
+    return max_z;
 }

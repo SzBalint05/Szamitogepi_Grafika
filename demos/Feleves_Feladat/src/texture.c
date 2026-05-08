@@ -3,10 +3,10 @@
 #include <SDL2/SDL_image.h>
 #include <stdio.h>
 
-GLuint load_texture(const char* filename)
-{
+GLuint load_texture(const char* filename){
     SDL_Surface* raw_surface = IMG_Load(filename);
-    if (!raw_surface){
+    
+    if(!raw_surface){
         printf("Can't find texture: %s\n", filename);
         return 0;
     }

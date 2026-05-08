@@ -9,18 +9,18 @@ typedef struct{
     float z;
 }vec3;
 
-typedef struct Color {
+typedef struct Color{
     float red;
     float green;
     float blue;
-} Color;
+}Color;
 
-typedef struct Material {
+typedef struct Material{
     Color ambient;
     Color diffuse;
     Color specular;
     float shininess;
-} Material;
+}Material;
 
 double degree_to_radian(double degree);
 
