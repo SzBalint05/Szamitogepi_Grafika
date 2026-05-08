@@ -57,7 +57,7 @@ void init_opengl(){
     glFogfv(GL_FOG_COLOR, bg_color);
     glFogi(GL_FOG_MODE, GL_LINEAR);
     glFogf(GL_FOG_START, -3.0f);
-    glFogf(GL_FOG_END, 15.0f);
+    glFogf(GL_FOG_END, 30.0f);
     glHint(GL_FOG_HINT, GL_NICEST);
 
     glEnable(GL_LIGHTING);
@@ -99,6 +99,26 @@ void handle_app_events(App* app){
             case SDL_SCANCODE_D:
                 set_camera_side_speed(&(app->camera), -5.0);
                 break;
+            case SDL_SCANCODE_F:
+                app->scene.flashlight_level++;
+                if(app->scene.flashlight_level > 3) app->scene.flashlight_level = 0;
+                
+                if(app->scene.battery <= 0.0f) {
+                    app->scene.flashlight_level = 0;
+                }
+                break;
+            case SDL_SCANCODE_KP_PLUS:
+            case SDL_SCANCODE_EQUALS:
+                if(app->scene.battery > 0.0f){
+                    app->scene.flashlight_level++;
+                    if(app->scene.flashlight_level > 3) app->scene.flashlight_level = 3;
+                }
+                break;
+            case SDL_SCANCODE_KP_MINUS:
+            case SDL_SCANCODE_MINUS:
+                app->scene.flashlight_level--;
+                if(app->scene.flashlight_level < 0) app->scene.flashlight_level = 0;
+                break;
             default:
                 break;
             }
@@ -137,8 +157,26 @@ void update_app(App* app){
     double elapsed_time = current_time - app->uptime;
     app->uptime = current_time;
 
+    float old_x = app->camera.position.x;
+    float old_y = app->camera.position.y;
+
     update_camera(&(app->camera), elapsed_time);
     update_scene(&(app->scene), elapsed_time);
+
+    float new_x = app->camera.position.x;
+    float new_y = app->camera.position.y;
+
+    app->camera.position.x = new_x;
+    app->camera.position.y = old_y;
+
+    if(is_colliding(&(app->scene), app->camera.position.x, app->camera.position.y, PLAYER_RADIUS)){
+        app->camera.position.x = old_x; 
+    }
+
+    app->camera.position.y = new_y;
+    if(is_colliding(&(app->scene), app->camera.position.x, app->camera.position.y, PLAYER_RADIUS)){
+        app->camera.position.y = old_y; 
+    }
 
     float terrain_z = get_terrain_height(&(app->scene), app->camera.position.x, app->camera.position.y);
     app->camera.position.z = terrain_z + 1.5;
@@ -147,10 +185,82 @@ void update_app(App* app){
 void render_app(App* app){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    if(app->scene.flashlight_level > 0){
+        glEnable(GL_LIGHT1);
+
+        float pos[] = {-0.3f, -0.2f, 0.0f, 1.0f};
+        float dir[] = {0.0f, 0.0f, -1.0f};
+
+        glLightfv(GL_LIGHT1, GL_POSITION, pos);
+        glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, dir);
+
+        float diff[] = {1.0f, 1.0f, 1.0f, 1.0f};
+        glLightfv(GL_LIGHT1, GL_DIFFUSE, diff);
+        glLightfv(GL_LIGHT1, GL_SPECULAR, diff);
+        glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, 50.0f);
+        glLightf(GL_LIGHT1, GL_CONSTANT_ATTENUATION, 1.0f);
+
+        if(app->scene.flashlight_level == 1){
+            glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 25.0f);
+            glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 0.05f);
+            glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.01f);
+        }else if(app->scene.flashlight_level == 2){ 
+            glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 20.0f);
+            glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 0.02f);
+            glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.002f);
+        }else if(app->scene.flashlight_level == 3){ 
+            glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 15.0f);
+            glLightf(GL_LIGHT1, GL_LINEAR_ATTENUATION, 0.005f);
+            glLightf(GL_LIGHT1, GL_QUADRATIC_ATTENUATION, 0.0005f);
+        }
+    }else{
+        glDisable(GL_LIGHT1);
+    }
+
     glPushMatrix();
     set_view(&(app->camera));
     render_scene(&(app->scene));
     glPopMatrix();
+
+    int w, h;
+    SDL_GetWindowSize(app->window, &w, &h);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0.0, (double)w, 0.0, (double)h, -1.0, 1.0); 
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST); 
+    glDisable(GL_LIGHTING);   
+    glEnable(GL_ALPHA_TEST);  
+    glAlphaFunc(GL_GREATER, 0.1f);
+    
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, app->scene.hud_flashlight_texture);
+
+    float icon_size = h * 0.5f;
+
+    glBegin(GL_QUADS);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 0.0f);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(icon_size, 0.0f);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(icon_size, icon_size);
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, icon_size);
+    glEnd();
+
+    glDisable(GL_ALPHA_TEST); 
+    glEnable(GL_LIGHTING);    
+    glEnable(GL_DEPTH_TEST);  
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
 
     SDL_GL_SwapWindow(app->window);
 }

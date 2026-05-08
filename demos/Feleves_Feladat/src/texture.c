@@ -5,11 +5,14 @@
 
 GLuint load_texture(const char* filename)
 {
-    SDL_Surface* surface = IMG_Load(filename);
-    if (!surface) {
+    SDL_Surface* raw_surface = IMG_Load(filename);
+    if (!raw_surface){
         printf("Can't find texture: %s\n", filename);
         return 0;
     }
+
+    SDL_Surface* surface = SDL_ConvertSurfaceFormat(raw_surface, SDL_PIXELFORMAT_RGBA32, 0);
+    SDL_FreeSurface(raw_surface);
 
     GLuint texture_name;
     glGenTextures(1, &texture_name);
@@ -20,8 +23,7 @@ GLuint load_texture(const char* filename)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    int mode = (surface->format->BytesPerPixel == 4) ? GL_RGBA : GL_RGB;
-    glTexImage2D(GL_TEXTURE_2D, 0, mode, surface->w, surface->h, 0, mode, GL_UNSIGNED_BYTE, surface->pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
 
     SDL_FreeSurface(surface);
     return texture_name;
