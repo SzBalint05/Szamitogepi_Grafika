@@ -9,10 +9,16 @@
 typedef struct{
     SDL_Window* window;
     SDL_GLContext gl_context;
+    
     bool is_running;
     double uptime;
+
     bool is_paused;
     GLuint help_texture;
+
+    bool is_game_over;
+    float game_over_timer;
+    GLuint game_over_texture;
     
     Camera camera;
     Scene scene;

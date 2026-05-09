@@ -42,6 +42,10 @@ void init_app(App* app){
 
     app->help_texture = load_texture("assets/textures/help.png");
 
+    app->is_game_over = false;
+    app->game_over_timer = 0.0f;
+    app->game_over_texture = load_texture("assets/textures/gameover.png");
+
     app->uptime = (double)SDL_GetTicks() / 1000.0;
     app->is_running = true;
 }
@@ -142,9 +146,40 @@ void handle_app_events(App* app){
 
         case SDL_MOUSEBUTTONDOWN:
             if(event.button.button == SDL_BUTTON_LEFT){
-                if(!app->scene.is_shooting && !app->is_paused){
+                if(!app->scene.is_shooting && !app->is_paused && app->scene.gun_cooldown <= 0.0f){
                     app->scene.is_shooting = true;
                     app->scene.shot_timer = 0.05f;
+                    app->scene.gun_cooldown = 0.5f;
+
+                    float dir_x = cos(degree_to_radian(app->camera.rotation.z)) * cos(degree_to_radian(app->camera.rotation.x));
+                    float dir_y = sin(degree_to_radian(app->camera.rotation.z)) * cos(degree_to_radian(app->camera.rotation.x));
+                    float dir_z = sin(degree_to_radian(app->camera.rotation.x));
+
+                    for(int i = 0; i < MAX_GHOSTS; i++){
+                        if(app->scene.ghosts[i].is_alive && app->scene.ghosts[i].is_illuminated && !app->scene.ghosts[i].is_dying){
+                            
+                            float vx = app->scene.ghosts[i].x - app->camera.position.x;
+                            float vy = app->scene.ghosts[i].y - app->camera.position.y;
+                            float vz = app->scene.ghosts[i].z - app->camera.position.z;
+                            float t = vx*dir_x + vy*dir_y + vz*dir_z; 
+
+                            if(t > 0.0f && t < 50.0f){
+                                float hit_x = app->camera.position.x + dir_x * t;
+                                float hit_y = app->camera.position.y + dir_y * t;
+                                float hit_z = app->camera.position.z + dir_z * t;
+                                float dist_sq = pow(app->scene.ghosts[i].x - hit_x, 2) +  pow(app->scene.ghosts[i].y - hit_y, 2) + pow(app->scene.ghosts[i].z - hit_z, 2);
+
+                                if(dist_sq < 4.0f){
+                                    app->scene.ghosts[i].hp--; 
+                                    if(app->scene.ghosts[i].hp <= 0){
+                                        app->scene.ghosts[i].is_dying = true;
+                                        app->scene.ghosts[i].alpha = 1.0f;
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             break;
@@ -169,6 +204,24 @@ void update_app(App* app){
     double elapsed_time = current_time - app->uptime;
     app->uptime = current_time;
 
+    if(app->is_game_over){
+        app->game_over_timer -= elapsed_time;
+        if(app->game_over_timer <= 0.0f){
+            init_camera(&(app->camera));
+            app->scene.hp = 100;
+            app->scene.battery = 100.0f;
+            app->scene.kills = 0;
+            app->scene.flashlight_level = 0;
+            app->scene.is_shooting = false;
+            app->scene.damage_indicator_timer = 0.0f;
+            for(int i = 0; i < MAX_GHOSTS; i++) app->scene.ghosts[i].is_alive = false;
+            for(int i = 0; i < 3; i++) spawn_ghost(&(app->scene), 64.0f, 64.0f);
+            
+            app->is_game_over = false;
+        }
+        return;
+    }
+
     if (app->is_paused) return; 
 
     float old_x = app->camera.position.x;
@@ -176,7 +229,12 @@ void update_app(App* app){
     float current_z = app->camera.position.z - 1.5f;
 
     update_camera(&(app->camera), elapsed_time);
-    update_scene(&(app->scene), elapsed_time);
+    update_scene(&(app->scene), elapsed_time, &(app->camera)); 
+
+    if(app->scene.hp <= 0 && !app->is_game_over){
+        app->is_game_over = true;
+        app->game_over_timer = 3.0f;
+    }
 
     float new_x = app->camera.position.x;
     float new_y = app->camera.position.y;
@@ -285,7 +343,7 @@ void render_app(App* app){
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    glOrtho(0.0, (double)w, 0.0, (double)h, -1.0, 1.0); 
+    glOrtho(0.0, (double)w, 0.0, (double)h, -1.0, 1.0);
 
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
@@ -327,7 +385,7 @@ void render_app(App* app){
         glVertex2f(start_x, 60); glVertex2f(start_x + bar_width, 60);
         glVertex2f(start_x + bar_width, 60 + bar_height); glVertex2f(start_x, 60 + bar_height);
     glEnd();
-    
+
     glColor3f(0.8f, 0.8f, 0.0f);
     float bat_w = (app->scene.battery / 100.0f) * bar_width;
     glBegin(GL_QUADS);
@@ -403,12 +461,63 @@ void render_app(App* app){
         glTexCoord2f(0.0f, 0.0f); glVertex2f(gun_x, gun_y + gun_s);
     glEnd();
 
+    // Sebzés indikátor
+    if(app->scene.damage_indicator_timer > 0.0f){
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 0.0f, 0.0f, 0.3f);
+        
+        float border_w = w * 0.03f;
+
+        glBegin(GL_QUADS);
+            glVertex2f(0, 0); glVertex2f(w, 0); glVertex2f(w, border_w); glVertex2f(0, border_w);
+            glVertex2f(0, h - border_w); glVertex2f(w, h - border_w); glVertex2f(w, h); glVertex2f(0, h);
+            glVertex2f(0, border_w); glVertex2f(border_w, border_w); glVertex2f(border_w, h - border_w); glVertex2f(0, h - border_w);
+            glVertex2f(w - border_w, border_w); glVertex2f(w, border_w); glVertex2f(w, h - border_w); glVertex2f(w - border_w, h - border_w);
+        glEnd();
+        glDisable(GL_BLEND);
+    }
+
+    // Game Over képernyő
+    if(app->is_game_over){
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
+        
+        glBegin(GL_QUADS);
+            glVertex2f(0.0f, 0.0f);
+            glVertex2f(w, 0.0f);
+            glVertex2f(w, h);
+            glVertex2f(0.0f, h);
+        glEnd();
+        glDisable(GL_BLEND);
+
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_ALPHA_TEST);
+        glBindTexture(GL_TEXTURE_2D, app->game_over_texture);
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        float help_w = w * 0.5f;
+        float help_h = help_w * 0.75f;
+        float help_x = (w - help_w) / 2.0f;
+        float help_y = (h - help_h) / 2.0f;
+
+        glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(help_x, help_y);
+            glTexCoord2f(1.0f, 1.0f); glVertex2f(help_x + help_w, help_y);
+            glTexCoord2f(1.0f, 0.0f); glVertex2f(help_x + help_w, help_y + help_h);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(help_x, help_y + help_h);
+        glEnd();
+    }
+
     // Paused képernyő
     if(app->is_paused){
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
         
         glBegin(GL_QUADS);
             glVertex2f(0.0f, 0.0f);
@@ -423,7 +532,7 @@ void render_app(App* app){
         glBindTexture(GL_TEXTURE_2D, app->help_texture);
         glColor3f(1.0f, 1.0f, 1.0f);
 
-        float help_w = w * 0.5f; 
+        float help_w = w * 0.5f;
         float help_h = help_w * 0.75f;
         float help_x = (w - help_w) / 2.0f;
         float help_y = (h - help_h) / 2.0f;
