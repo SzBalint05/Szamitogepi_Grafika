@@ -6,6 +6,9 @@ Mappaszerkezet:
     'src/': .c forrásfájlok
     'include/': .h fejlécfájlok
     'assets/': textúrák és modellek
+        'assets/models/'
+        'assets/textures/'
+
 Fordítás: A Makefile fordítja és futtatja a programot.
 
 A "Shadow Hunter" egy FPS (belső nézetes) túlélő játék, amely egy sötét, ködös, procedurálisan generált erdőben játszódik. A játékos célja a túlélés és a rátámadó árnyéklények elpusztítása. Az ellenfelek a sötétségben sebezhetetlenek és áttetszőek. A játékosnak először meg kell világítania őket a zseblámpájával és csak ezután lehet őket fegyverrel megsebezni.
@@ -29,6 +32,12 @@ Sebződés és Animációk:
 Ellenfél: Találat esetén (AABB bounding box alapú ütközésvizsgálat a lövedék és a modell között) az ellenfél modellje egy pillanatra pirosan villan, halálakor pedig a modell a méretének csökkentésével eltűnik ("elfüstöl").
 Játékos: Ha egy ellenfél AABB doboza metszi a játékosét, a képernyő széleire egy piros, átlátszó quadot rajzol a HUD, jelezve a sérülést.
 
-Assets mappa: (Amint kész az összes textúra és modell beillesztem ide a letöltési linket.)
+Assets mappa: https://drive.google.com/file/d/1zpFEsWtNti2CTzNEya_pqDx7AWDPD7Eo/view?usp=sharing
 
-A felhasznált 3D modellek és textúrák forrásai:
+A felhasznált modellek és textúrák forrásai:
+https://opengameart.org/content/seamless-grass-texture-1
+https://www.magnific.com/free-photo/white-crumpled-paper-background-simple-diy-craft_17434094.htm#fromView=keyword&page=1&position=23&uuid=346f17cf-5421-4daf-abac-4a9251d7e12d&query=Paper+texture
+https://manticorp.github.io/unrealheightmap/#latitude/0/longitude/0/zoom/5/outputzoom/13/width/128/height/128/outputformat/png16
+https://brokenvector.itch.io/low-poly-rock-pack
+https://kenney.nl/assets/nature-kit
+https://skfb.ly/6ZnzL

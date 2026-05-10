@@ -17,16 +17,20 @@ void init_camera(Camera* camera){
 }
 
 void update_camera(Camera* camera, double time){
-    double angle;
-    double side_angle;
+    double angle = degree_to_radian(camera->rotation.z);
+    double side_angle = degree_to_radian(camera->rotation.z + 90.0);
 
-    angle = degree_to_radian(camera->rotation.z);
-    side_angle = degree_to_radian(camera->rotation.z + 90.0);
+    double dx = cos(angle) * camera->speed.y + cos(side_angle) * camera->speed.x;
+    double dy = sin(angle) * camera->speed.y + sin(side_angle) * camera->speed.x;
+    double current_speed = sqrt(dx*dx + dy*dy);
 
-    camera->position.x += cos(angle) * camera->speed.y * time;
-    camera->position.y += sin(angle) * camera->speed.y * time;
-    camera->position.x += cos(side_angle) * camera->speed.x * time;
-    camera->position.y += sin(side_angle) * camera->speed.x * time;
+    if(current_speed > 5.0){
+        dx = (dx / current_speed) * 5.0;
+        dy = (dy / current_speed) * 5.0;
+    }
+
+    camera->position.x += dx * time;
+    camera->position.y += dy * time;
 }
 
 void set_view(const Camera* camera){

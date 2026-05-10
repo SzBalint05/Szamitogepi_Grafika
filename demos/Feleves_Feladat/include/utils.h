@@ -23,5 +23,8 @@ typedef struct Material{
 }Material;
 
 double degree_to_radian(double degree);
+float random_float(float min, float max);
+void draw_bar(float x, float y, float width, float height, float percentage, Color bg, Color fg);
+void draw_fullscreen_overlay(int w, int h, GLuint texture);
 
 #endif // UTILS_H

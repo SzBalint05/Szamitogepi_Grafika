@@ -13,7 +13,7 @@
 #define NUM_ROCKS 70
 #define SPAWN_RADIUS 5.0f
 #define PLAYER_RADIUS 1.0f
-#define MAX_GHOSTS 8
+#define MAX_GHOSTS 6
 
 typedef struct Prop{
     float x;
@@ -32,6 +32,8 @@ typedef struct Ghost{
     int hp;
     float scale;
     float alpha;
+    bool killed_by_player;
+    float damage_timer;
 }Ghost;
 
 typedef struct{
@@ -73,5 +75,6 @@ float get_terrain_height(const Scene* scene, float x, float y);
 float get_surface_height(const Scene* scene, float x, float y);
 bool is_colliding(const Scene* scene, float x, float y, float z, float check_radius);
 void spawn_ghost(Scene* scene, float player_x, float player_y);
+void shoot_weapon(Scene* scene, const Camera* camera);
 
 #endif // SCENE_H
