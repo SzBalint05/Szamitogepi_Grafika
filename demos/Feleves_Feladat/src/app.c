@@ -1,4 +1,6 @@
 #include "app.h"
+#include "physics.h"
+#include "ui.h"
 #include <GL/gl.h>
 #include <stdio.h>
 #include <math.h>
@@ -188,9 +190,9 @@ void update_app(App* app){
 
     if (app->is_paused) return;
 
+    // Előző pozíció lementése
     float old_x = app->camera.position.x;
     float old_y = app->camera.position.y;
-    float current_z = app->camera.position.z - 1.5f;
 
     update_camera(&(app->camera), elapsed_time);
     update_scene(&(app->scene), elapsed_time, &(app->camera)); 
@@ -200,41 +202,8 @@ void update_app(App* app){
         app->game_over_timer = 3.0f;
     }
 
-    float new_x = app->camera.position.x;
-    float new_y = app->camera.position.y;
-
-    // Utkozésvizsgálat
-    app->camera.position.x = new_x;
-    if(is_colliding(&(app->scene), app->camera.position.x, app->camera.position.y, current_z, PLAYER_RADIUS)){
-        app->camera.position.x = old_x; 
-    }
-
-    app->camera.position.y = new_y;
-    if(is_colliding(&(app->scene), app->camera.position.x, app->camera.position.y, current_z, PLAYER_RADIUS)){
-        app->camera.position.y = old_y; 
-    }
-
-    // Ugrás és terepkövetés
-    float target_z = get_surface_height(&(app->scene), app->camera.position.x, app->camera.position.y);
-
-    if(app->camera.is_jumping){
-        current_z += app->camera.vertical_speed * elapsed_time;
-        app->camera.vertical_speed -= 15.0f * elapsed_time;
-
-        if(current_z <= target_z){
-            current_z = target_z;
-            app->camera.is_jumping = false;
-            app->camera.vertical_speed = 0.0f;
-        }
-    }else{
-        if (current_z > target_z + 0.3f){
-            app->camera.is_jumping = true;
-            app->camera.vertical_speed = 0.0f;
-        }else{
-            current_z = target_z;
-        }
-    }
-    app->camera.position.z = current_z + 1.5f; 
+    // Fizika és Ütközésvizsgálat
+    apply_physics(&(app->camera), &(app->scene), old_x, old_y, elapsed_time);
 }
 
 void render_app(App* app){
@@ -298,152 +267,24 @@ void render_app(App* app){
         glEnable(GL_LIGHTING);
     }
 
-    // Kamera kirajzolása
+    // 3D-s Kamera és Világ kirajzolása
     glPushMatrix();
     set_view(&(app->camera));
     render_scene(&(app->scene));
     glPopMatrix();
 
-    // HUD
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0.0, (double)w, 0.0, (double)h, -1.0, 1.0);
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_TEXTURE_2D);
-
-    // Célkereszt
-    glPointSize(4.0f);
-    glBegin(GL_POINTS);
-        glColor3f(1.0f, 1.0f, 1.0f);
-        glVertex2f(w / 2.0f, h / 2.0f);
-    glEnd();
-
-    // HP és töltési csík
-    float bar_width = 500.0f;
-    float bar_height = 25.0f;
-    float start_x = (w - bar_width) / 2.0f;
-
-    // HP és Töltési csík
-    draw_bar(start_x, 20.0f, bar_width, bar_height, app->scene.hp / 100.0f, (Color){0.2f, 0.0f, 0.0f}, (Color){1.0f, 0.0f, 0.0f});
-    draw_bar(start_x, 60.0f, bar_width, bar_height, app->scene.battery / 100.0f, (Color){0.1f, 0.1f, 0.0f}, (Color){0.8f, 0.8f, 0.0f});
-
-    // Scoreboard
-    glLineWidth(10.0f);
-    glColor3f(1.0f, 0.0f, 0.0f);
-
-    float line_height = 80.0f;
-    float spacing = 25.0f;
-    float tally_x = 50.0f;
-    float tally_y = h - 120.0f;
-
-    for(int i = 0; i < app->scene.kills; i++){
-        int group_pos = i % 5;
-
-        if(group_pos < 4){
-            glBegin(GL_LINES);
-                glVertex2f(tally_x, tally_y);
-                glVertex2f(tally_x, tally_y + line_height);
-            glEnd();
-            tally_x += spacing;
-        }else{
-            float start_x = tally_x - (spacing * 4.5f);
-            float start_y = tally_y - (line_height * 0.1f);
-            float end_x = tally_x - (spacing * 0.5f);
-            float end_y = tally_y + (line_height * 1.1f);
-
-            glBegin(GL_LINES);
-                glVertex2f(start_x, start_y);
-                glVertex2f(end_x, end_y);
-            glEnd();
-            tally_x += spacing * 2.0f;
-        }
-    }
-
-    // Zseblámpa ikon
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_ALPHA_TEST);
-    glAlphaFunc(GL_GREATER, 0.1f);
-    glBindTexture(GL_TEXTURE_2D, app->scene.hud_flashlight_texture);
-    glColor3f(1.0f, 1.0f, 1.0f);
-
-
-    float icon_s = w * 0.26f;
-    
-    glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 0.0f);
-        glTexCoord2f(1.0f, 1.0f); glVertex2f(icon_s, 0.0f);
-        glTexCoord2f(1.0f, 0.0f); glVertex2f(icon_s, icon_s);
-        glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, icon_s);
-    glEnd();
-
-    // Fegyver ikon
-    glBindTexture(GL_TEXTURE_2D, app->scene.gun_texture);
-
-    float gun_s = w * 0.30f;
-    float gun_x = w - gun_s;
-    float gun_y = 0.0f;
-
-    if(app->scene.is_shooting){
-        gun_x += w * 0.02f;
-        gun_y -= h * 0.03f;
-    }
-
-    glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 1.0f); glVertex2f(gun_x, gun_y);
-        glTexCoord2f(1.0f, 1.0f); glVertex2f(gun_x + gun_s, gun_y);
-        glTexCoord2f(1.0f, 0.0f); glVertex2f(gun_x + gun_s, gun_y + gun_s);
-        glTexCoord2f(0.0f, 0.0f); glVertex2f(gun_x, gun_y + gun_s);
-    glEnd();
-
-    // Sebzés indikátor
-    if(app->scene.damage_indicator_timer > 0.0f){
-        glDisable(GL_TEXTURE_2D);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glColor4f(1.0f, 0.0f, 0.0f, 0.3f);
-        
-        float border_w = w * 0.03f;
-
-        glBegin(GL_QUADS);
-            glVertex2f(0, 0); glVertex2f(w, 0); glVertex2f(w, border_w); glVertex2f(0, border_w);
-            glVertex2f(0, h - border_w); glVertex2f(w, h - border_w); glVertex2f(w, h); glVertex2f(0, h);
-            glVertex2f(0, border_w); glVertex2f(border_w, border_w); glVertex2f(border_w, h - border_w); glVertex2f(0, h - border_w);
-            glVertex2f(w - border_w, border_w); glVertex2f(w, border_w); glVertex2f(w, h - border_w); glVertex2f(w - border_w, h - border_w);
-        glEnd();
-        glDisable(GL_BLEND);
-    }
-
-    // Game Over és Paused képernyő
-    if(app->is_game_over){
-        draw_fullscreen_overlay(w, h, app->game_over_texture);
-    }
-
-    if(app->is_paused){
-        draw_fullscreen_overlay(w, h, app->help_texture);
-    }
-
-    // Visszaállítás
-    glDisable(GL_ALPHA_TEST);
-    glDisable(GL_TEXTURE_2D);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_DEPTH_TEST);
-
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
+    // HUD kirajzolása
+    render_hud(&(app->scene), w, h, app->is_paused, app->is_game_over, app->help_texture, app->game_over_texture);
 
     SDL_GL_SwapWindow(app->window);
 }
 
 void destroy_app(App* app){
+    glDeleteTextures(1, &(app->help_texture));
+    glDeleteTextures(1, &(app->game_over_texture));
+
+    destroy_scene(&(app->scene));
+
     if(app->gl_context != NULL){
         SDL_GL_DeleteContext(app->gl_context);
     }
